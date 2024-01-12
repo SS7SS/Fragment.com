@@ -1,7 +1,8 @@
 import requests
 import telebot
 import traceback
-TOKEN = "6016537523:AAG3Kp2pgR8Z96EASX2usA-Nv1aVPf6Wtms"
+import cloudscraper
+TOKEN = "5406001028:AAFC_qYpzE2MsmZe7S507uli12ApBaE0FdU"
 bot = telebot.TeleBot(TOKEN)
 
 
@@ -18,7 +19,7 @@ I do some simple orders
 4- /user + • Address of a specific person To show the names of the NFT users they own • 
 - - - - - - - - - - - - - - - - - 
 5 - /Address - + username A specific person to display his Address with the usernames he owns *
-- - - - - - - - - - - - - - - - - 
+
 6 - /info + username - • Display information for a specific username •
 """,
                  parse_mode="Markdown")
@@ -51,7 +52,7 @@ def info(message, user):
         sold = re.findall(r'table-cell-value tm-value icon-before icon-ton">(.*?)<', str(soup))
         token = re.findall(r'tm-section-header-status tm-status-unavail">(.*?)<', str(soup))
         if token:
-            bot.send_photo(chat_id, img, caption=f'* This username is sold and is  : {token[0]}\nIt was sold at a price : ( {sold[0]} ) Ton *', parse_mode="Markdown")
+            bot.send_photo(chat_id, img, caption=f'* This username is sold and is  : {token[0]}\nIt was sold at a price : {sold[0]}*', parse_mode="Markdown")
         else:
             raise Exception("Empty token")
     except:
@@ -62,7 +63,7 @@ def info(message, user):
             token2 = re.findall(r'tm-section-header-status tm-status-avail">(.*?)<', str(soup2))
             if token2 and token2[0] == "Available":
             
-                bot.send_photo(chat_id, img, caption=f'*This username is available for auction if:{token2[0]}\n Minimum bid : ( {max[0]} ) Ton*', parse_mode="Markdown") 
+                bot.send_photo(chat_id, img, caption=f'*This username is available for auction if:{token2[0]}\n Minimum bid : {max[0]}*', parse_mode="Markdown") 
             else:
                 
                 response3 = requests.get(f"https://fragment.com/username/{user}")
@@ -70,9 +71,9 @@ def info(message, user):
                 max2 = re.findall(r'table-cell-value tm-value icon-before icon-ton">(.*?)<', str(soup3))
                 token3 = re.findall(r'tm-section-header-status tm-status-avail">(.*?)<', str(soup3))
                 if token3:
-                    bot.send_photo(chat_id, img, caption=f'* This username is in the bidding and is in the case of : {token3[0]}\n Current highest bid : ( {max2[0]} ) Ton*', parse_mode="Markdown")
+                    bot.send_photo(chat_id, img, caption=f'* This username is in the bidding and is in the case of : {token3[0]}\n Current highest bid : {max2[0]}*', parse_mode="Markdown")
                 else:
-                    return "An error occurred . Verify that the username is NFT"
+                    return "an error occurred . Verify that the username is NFT"
         except:
             return "حدث خطأ ما"
 
@@ -98,12 +99,16 @@ def Address(message):
     try:
         chat_id = message.chat.id
         user = message.text.split()[1]
-        url = f"https://fragment.com/username/{user}"
+        print(user)
+        url = f"https://fragment.com/username/{user.replace('@','')}"
+        api = cloudscraper.create_scraper()
+        rsl = api.get(url)
+        print(rsl.text)
+        token = re.findall(r'<a href="https://tonviewer.com/([^<]*)" class="tm-wallet" target="_blank"><span class="short">plug.t.me</span></a>', rsl.text)
+        print(token)
+        token = token[0]
+        print(token)
 
-        rsl = requests.get(url)
-        soup = BeautifulSoup(rsl.content, 'html.parser')
-        token = re.findall("href=\"(.*?)\"", str(soup.find("a", attrs={'class': 'tm-wallet'})))
-        token = str(token[0].replace('https://tonviewer.com/', ''))
         req = requests.get(f"https://tonapi.io/v2/accounts/{token}/nfts").json()["nft_items"]
 
         ton = f"https://tonviewer.com/{token}"
@@ -121,10 +126,12 @@ def Address(message):
             except:
                 pass
         bot.reply_to(message, f"""User address : {token}\n\nThe number of tons he owns : {value} \n\nHis usernames : \n""" + ' '.join([f'{username}' for username in usernames]))
-                     
+    except IndexError:
+        traceback.print_exc()
+        bot.reply_to(message, f'Sorry, this user has not usernames')              
     except Exception as e:
         traceback.print_exc()
-        bot.reply_to(message, f'*Sorry, an error occurred: {e}*')
+        bot.reply_to(message, f'Sorry, an error occurred: {e}')
 # Thank you t.me/Onlydragon for the API
 
 
